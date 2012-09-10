@@ -1,0 +1,6 @@
+#!/bin/bash
+# burn-dvd-dir <directory>
+# burns a directory to a DVD.
+# requires: app-cdr/dvd+rw-tools
+
+growisofs -dvd-compat -dvd-video -Z /dev/hdb $*

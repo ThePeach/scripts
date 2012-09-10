@@ -1,0 +1,7 @@
+#!/bin/bash
+# burn-cd-iso <iso image>
+# burns a pre-made .iso file to CD.
+# requires: app-cdr/cdrtools
+
+cdrecord dev=/dev/sr0 padsize=63s -multi -dao -overburn -eject -pad -v driveropts=burnfree $*
+

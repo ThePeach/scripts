@@ -1,0 +1,6 @@
+#!/bin/bash
+# burn-dvd-iso
+# burns a pre-made .iso file to a DVD.
+# requires: app-cdr/dvd+rw-tools
+
+growisofs -use-the-force-luke=dao -dvd-compat -Z /dev/sr0=$*

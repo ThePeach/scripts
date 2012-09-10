@@ -1,0 +1,6 @@
+#!/bin/bash
+# burn-cd-dir <directory>
+# makes an iso on the fly and burns it to a CD.
+# requires: app-cdr/cdrtools
+
+mkisofs -R -l $* | cdrecord dev=/dev/hdb padsize=63s -eject -pad -v driveropts=burnfree -
