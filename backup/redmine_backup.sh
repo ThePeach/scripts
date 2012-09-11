@@ -1,7 +1,8 @@
 #!/bin/bash
 # Redmine Backup script
 # an improved and customisable script
-# taken from http://www.redmine.org
+# taken from
+# http://www.redmine.org/projects/redmine/wiki/HowTo_Migrate_Redmine_to_a_new_server_to_a_new_Redmine_version
 #
 # This code works only on Bash > 3.0
 # This code is provided 'as-is'
