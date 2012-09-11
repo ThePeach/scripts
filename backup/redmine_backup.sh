@@ -3,21 +3,22 @@
 # an improved and customisable script
 # taken from http://www.redmine.org
 #
+# This code works only on Bash > 3.0
 # This code is provided 'as-is'
 # and released under the GPLv2
 
 VERSION="0.1"
-REDMINE_HOME="/usr/share/redmine/"
-DB_CONFIG="${REDMINE_HOME}default/database.yml"
-FILES="/var/lib/redmine/default/files"
+REDMINE_HOME="/usr/share/redmine"
+DB_CONFIG="${REDMINE_HOME}/config/database.yml"
+FILES="${REDMINE_HOME}/files"
 NO_ARGS=0
 E_OPTERROR=85
 E_GENERROR=25
-COMMITT_MSG=`date +%F-%H-%M`
+COMMIT_MSG=`date +%F-%H-%M`
 GIT_SERVER=`git config remote.origin.url`
 
 function usage() {
-echo -e "Usage: `basename $2` [ -v | -r | -h ] [commit msg]
+echo -e "Usage: `basename $0` [ -v | -r | -h ] [commit msg]
 
 When called without parameters, the Redmine database and files are 
 dumped to git-repo in ${REDMINE_HOME}, then the git-repo is pushed
@@ -47,7 +48,7 @@ function error() {
 
 # The expected flags are
 #  h v r
-while getopts ":hvr:" Option
+while getopts ":hvrn" Option
 do
     case $Option in
         h ) version
@@ -55,6 +56,7 @@ do
             exit 0;;
         v ) BE_VERBOSE=true;;
         r ) DO_RESTORE=true;;
+        n ) DRY_RUN=true;;
     esac
 done
 
@@ -80,31 +82,89 @@ DATABASE=`cat ${DB_CONFIG} | sed -rn 's/ *database: (.+)/\1/p' | head -n 1`
 USERNAME=`cat ${DB_CONFIG} | sed -rn 's/ *username: (.+)/\1/p' | head -n 1`
 PASSWORD=`cat ${DB_CONFIG} | sed -rn 's/ *password: (.+)/\1/p' | head -n 1`
 
-if [ -n $BE_VERBOSE ] 
+if [ $BE_VERBOSE ] 
 then
-    echo "database: $DATABASE"
-    echo "username: $USERNAME"
-    echo "password: $PASSWORD"
+    echo ">> database: $DATABASE"
+    echo ">> username: $USERNAME"
+    echo ">> password: $PASSWORD"
 fi
 
 cd "${REDMINE_HOME}"
 
+# checking files directory
+if [[ "$FILES" =~ "$REDMINE_HOME" ]]
+then
+    [ $BE_VERBOSE ] && echo ">> $FILES are in the same subdir"
+    FILES_BACKUP="$FILES";
+else
+    [ $BE_VERBOSE ] && echo ">> $FILES are outside the home, moving everything in a subdir"
+    if [ ! -d "${REDMINE_HOME}/files" ]
+    then
+        [ $BE_VERBOSE ] && echo ">> about to create ${REDMINE_HOME}/files"
+        if [ $DRY_RUN ]
+        then
+            echo "mkdir ${REDMINE_HOME}/files"
+        else
+            mkdir ${REDMINE_HOME}/files
+        fi
+        FILES_BACKUP="$FILES"
+    else
+        [ $BE_VERBOSE ] && echo ">> ${REDMINE_HOME}/files exists, creating a different dir"
+        if [ $DRY_RUN ]
+        then
+            echo "mkdir ${REDMINE_HOME}/backup_files"
+        else
+            mkdir ${REDMINE_HOME}/backup_files
+        fi
+        FILES_BACKUP="${REDMINE_HOME}/backup_files"
+    fi
+fi
+
 # Restore
 if [ $DO_RESTORE ]
 then
-    if [ -n $BE_VERBOSE ]; then echo "Restoring from $DATABASE";
-    /usr/bin/mysql --user=${USERNAME} --password=${PASSWORD} $DATABASE < redmine.sql
+    [ $BE_VERBOSE ] && echo ">> Restoring from $DATABASE";
+    if [ $DRY_RUN ] 
+    then
+        echo "/usr/bin/mysql --user=${USERNAME} --password=${PASSWORD} $DATABASE < redmine.sql";
+    else
+        /usr/bin/mysql --user=${USERNAME} --password=${PASSWORD} $DATABASE < redmine.sql
+    fi
     cp -f [!r][!e][!d][!m][!i][!n][!e]* $FILES
 
 # Backup
 else
-    if [ -n $BE_VERBOSE ]; then echo "Backing up $DATABASE";
-    if [ "$1" ]; then COMMITT_MSG="$@";
-    /usr/bin/mysqldump --user=${USERNAME} --password=${PASSWORD} --skip-extended-insert $DATABASE > redmine.sql
-    cp -f ${FILES}/* .
-    git add *
-    git commit -m "$MSG" 
-    git push --all origin
+    if [ $BE_VERBOSE ]; then echo ">> Backing up $DATABASE"; fi
+    if [ "$1" ]; then COMMIT_MSG="$@"; fi
+    if [ $DRY_RUN ]
+    then
+        echo "/usr/bin/mysqldump --user=${USERNAME} --password=${PASSWORD} --skip-extended-insert $DATABASE > redmine.sql"
+    else
+        /usr/bin/mysqldump --user=${USERNAME} --password=${PASSWORD} --skip-extended-insert $DATABASE > redmine.sql
+    fi
+
+    if [ "$FILES" -eq "$BACKUP_FILES" ]
+    then
+        [ $BE_VERBOSE ] && echo ">> Backing up files from ${FILES_BACKUP}";
+        if [ $DRY_RUN ]
+        then
+            echo "cp -f ${FILES_BACKUP}/* ."
+        else
+            cp -f ${FILES_BACKUP}/* .
+        fi
+    fi
+
+    [ $BE_VERBOSE ] && echo ">> adding and COMMITing on GIT"
+    if [ $DRY_RUN ]
+    then
+        echo "git add *"
+        echo "git commit -m $COMMIT_MSG"
+        echo "git push --all origin"
+    else
+        git add *
+        git commit -m "$COMMIT_MSG"
+        git push --all origin
+    fi
 fi
 
 # something has gone bad, we have to report it
