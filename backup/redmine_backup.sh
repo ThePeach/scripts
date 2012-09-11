@@ -123,6 +123,14 @@ fi
 # Restore
 if [ $DO_RESTORE ]
 then
+    [ $BE_VERBOSE ] && echo ">> Pulling from origin"
+    if [ $DRY_RUN ]
+    then
+        echo "git pull -a origin"
+    else
+        git pull -a origin
+    fi
+    
     [ $BE_VERBOSE ] && echo ">> Restoring from $DATABASE";
     if [ $DRY_RUN ] 
     then
@@ -130,7 +138,17 @@ then
     else
         /usr/bin/mysql --user=${USERNAME} --password=${PASSWORD} $DATABASE < redmine.sql
     fi
-    cp -f [!r][!e][!d][!m][!i][!n][!e]* $FILES
+
+    if [ "$FILES" != "$FILES_BACKUP" ]
+    then
+        [ $BE_VERBOSE ] && echo ">> Restoring files from ${FILES_BACKUP} to ${FILES}";
+        if [ $DRY_RUN ]
+        then
+            echo "cp -f ${FILES_BACKUP}/* ${FILES}"
+        else
+            cp -f ${FILES_BACKUP}/* ${FILES}
+        fi
+    fi
 
 # Backup
 else
@@ -145,12 +163,12 @@ else
 
     if [ "$FILES" != "$FILES_BACKUP" ]
     then
-        [ $BE_VERBOSE ] && echo ">> Backing up files from ${FILES_BACKUP}";
+        [ $BE_VERBOSE ] && echo ">> Backing up files from ${FILES} to ${FILES_BACKUP}";
         if [ $DRY_RUN ]
         then
-            echo "cp -f ${FILES_BACKUP}/* ."
+            echo "cp -f ${FILES}/* ${FILES_BACKUP}"
         else
-            cp -f ${FILES_BACKUP}/* .
+            cp -f ${FILES}/* ${FILES_BACKUP}
         fi
     fi
 
