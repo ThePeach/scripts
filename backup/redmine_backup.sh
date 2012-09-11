@@ -143,7 +143,7 @@ else
         /usr/bin/mysqldump --user=${USERNAME} --password=${PASSWORD} --skip-extended-insert $DATABASE > redmine.sql
     fi
 
-    if [ "$FILES" -eq "$BACKUP_FILES" ]
+    if [ "$FILES" != "$FILES_BACKUP" ]
     then
         [ $BE_VERBOSE ] && echo ">> Backing up files from ${FILES_BACKUP}";
         if [ $DRY_RUN ]
