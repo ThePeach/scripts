@@ -18,7 +18,7 @@ COMMIT_MSG=`date +%F-%H-%M`
 GIT_SERVER=`git config remote.origin.url`
 
 function usage() {
-echo -e "Usage: `basename $0` [ -v | -r | -h ] [commit msg]
+echo -e "Usage: `basename $0` [ -h | -v | -r | -n ] [commit msg]
 
 When called without parameters, the Redmine database and files are 
 dumped to git-repo in ${REDMINE_HOME}, then the git-repo is pushed
@@ -28,11 +28,11 @@ When the first parameter is none of the ones below, the same backup
 procedure is done, but the commit message is the parameter list 
 instead of the date.
 
-\t-v: be verbose
-\t-r: Beforehand, check out the desired version of the Redmine database
-\t\tfrom git-repo.
-\t\tThis command will restore that version into Redmine.
 \t-h: Print this help text.
+\t-v: Be verbose
+\t-r: This command will restore git HEAD in Redmine.
+\t\tFiles that needs to be restored will be.
+\t-n: Dry run: don't actually do anything, just print the commands.
 \n"
 }
 
