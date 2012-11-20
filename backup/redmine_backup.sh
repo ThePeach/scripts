@@ -1,34 +1,39 @@
 #!/bin/bash
 # Redmine Backup script
 # an improved and customisable script
-# taken from http://www.redmine.org
+# taken from
+# http://www.redmine.org/projects/redmine/wiki/HowTo_Migrate_Redmine_to_a_new_server_to_a_new_Redmine_version
 #
+# This code works only on Bash > 3.0
 # This code is provided 'as-is'
 # and released under the GPLv2
 
 VERSION="0.1"
-REDMINE_HOME="/usr/share/redmine/"
-DB_CONFIG="${REDMINE_HOME}default/database.yml"
-FILES="/var/lib/redmine/default/files"
+REDMINE_HOME="/usr/share/redmine"
+DB_CONFIG="${REDMINE_HOME}/config/database.yml"
+FILES="${REDMINE_HOME}/files"
 NO_ARGS=0
 E_OPTERROR=85
 E_GENERROR=25
-COMMITT_MSG=`date +%F-%H-%M`
+COMMIT_MSG=`date +%F-%H-%M`
 GIT_SERVER=`git config remote.origin.url`
 
 function usage() {
-echo -e "Usage: `basename $2` [ -v | -r | -h ] [commit msg]
+echo -e "Usage: `basename $0` [ -h | -v | -r | -n ] [commit msg]
 
-When called without parameters, the Redmine database and files are dumped to
-git-repo in ${REDMINE_HOME}, then the git-repo is pushed to ${GIT_SERVER}.
+When called without parameters, the Redmine database and files are 
+dumped to git-repo in ${REDMINE_HOME}, then the git-repo is pushed
+to ${GIT_SERVER}.
 
-When the first parameter is none of the ones below, the same backup procedure
-is done, but the commit message is the parameter list instead of the date.
+When the first parameter is none of the ones below, the same backup
+procedure is done, but the commit message is the parameter list 
+instead of the date.
 
-\t-v: be verbose
-\t-r: Beforehand, check out the desired version of the Redmine database from 
-\t\tgit-repo. This command will restore that version into Redmine.
 \t-h: Print this help text.
+\t-v: Be verbose
+\t-r: This command will restore git HEAD in Redmine.
+\t\tFiles that needs to be restored will be.
+\t-n: Dry run: don't actually do anything, just print the commands.
 \n"
 }
 
@@ -44,7 +49,7 @@ function error() {
 
 # The expected flags are
 #  h v r
-while getopts ":hvr:" Option
+while getopts ":hvrn" Option
 do
     case $Option in
         h ) version
@@ -52,6 +57,7 @@ do
             exit 0;;
         v ) BE_VERBOSE=true;;
         r ) DO_RESTORE=true;;
+        n ) DRY_RUN=true;;
     esac
 done
 
@@ -71,40 +77,120 @@ then
     echo "${DB_CONFIG} not found, check carefully."
     exit $E_GENERROR
 fi
-DATABASE=`cat ${DB_CONFIG} | sed -rn 's/ *database: (.+)/\1/p'`
-USERNAME=`cat ${DB_CONFIG} | sed -rn 's/ *username: (.+)/\1/p'`
-PASSWORD=`cat ${DB_CONFIG} | sed -rn 's/ *password: (.+)/\1/p'`
+# here we are just guessing production will be 
+# at the very beginning of the file
+DATABASE=`cat ${DB_CONFIG} | sed -rn 's/ *database: (.+)/\1/p' | head -n 1`
+USERNAME=`cat ${DB_CONFIG} | sed -rn 's/ *username: (.+)/\1/p' | head -n 1`
+PASSWORD=`cat ${DB_CONFIG} | sed -rn 's/ *password: (.+)/\1/p' | head -n 1`
 
-if [ -n $BE_VERBOSE ] 
+if [ $BE_VERBOSE ] 
 then
-    echo "database: $DATABASE"
-    echo "username: $USERNAME"
-    echo "password: $PASSWORD"
+    echo ">> database: $DATABASE"
+    echo ">> username: $USERNAME"
+    echo ">> password: $PASSWORD"
 fi
 
 cd "${REDMINE_HOME}"
 
+# checking files directory
+if [[ "$FILES" =~ "$REDMINE_HOME" ]]
+then
+    [ $BE_VERBOSE ] && echo ">> $FILES are in the same subdir"
+    FILES_BACKUP="$FILES";
+else
+    [ $BE_VERBOSE ] && echo ">> $FILES are outside the home, moving everything in a subdir"
+    if [ ! -d "${REDMINE_HOME}/files" ]
+    then
+        [ $BE_VERBOSE ] && echo ">> about to create ${REDMINE_HOME}/files"
+        if [ $DRY_RUN ]
+        then
+            echo "mkdir ${REDMINE_HOME}/files"
+        else
+            mkdir ${REDMINE_HOME}/files
+        fi
+        FILES_BACKUP="$FILES"
+    else
+        [ $BE_VERBOSE ] && echo ">> ${REDMINE_HOME}/files exists, creating a different dir"
+        if [ $DRY_RUN ]
+        then
+            echo "mkdir ${REDMINE_HOME}/backup_files"
+        else
+            mkdir ${REDMINE_HOME}/backup_files
+        fi
+        FILES_BACKUP="${REDMINE_HOME}/backup_files"
+    fi
+fi
+
 # Restore
 if [ $DO_RESTORE ]
 then
-  /usr/bin/mysql --user=${USERNAME} --password=${PASSWORD} $DATABASE < redmine.sql
-  cp -f [!r][!e][!d][!m][!i][!n][!e]* $FILES
+    [ $BE_VERBOSE ] && echo ">> Pulling from origin"
+    if [ $DRY_RUN ]
+    then
+        echo "git pull -a origin"
+    else
+        git pull -a origin
+    fi
+    
+    [ $BE_VERBOSE ] && echo ">> Restoring from $DATABASE";
+    if [ $DRY_RUN ] 
+    then
+        echo "/usr/bin/mysql --user=${USERNAME} --password=${PASSWORD} $DATABASE < redmine.sql";
+    else
+        /usr/bin/mysql --user=${USERNAME} --password=${PASSWORD} $DATABASE < redmine.sql
+    fi
+
+    if [ "$FILES" != "$FILES_BACKUP" ]
+    then
+        [ $BE_VERBOSE ] && echo ">> Restoring files from ${FILES_BACKUP} to ${FILES}";
+        if [ $DRY_RUN ]
+        then
+            echo "cp -f ${FILES_BACKUP}/* ${FILES}"
+        else
+            cp -f ${FILES_BACKUP}/* ${FILES}
+        fi
+    fi
 
 # Backup
 else
-  if [ "$1" ]; then COMMITT_MSG="$@";
-  /usr/bin/mysqldump --user=${USERNAME} --password=${PASSWORD} --skip-extended-insert $DATABASE > redmine.sql
-  cp -f ${FILES}/* .
-  git add *
-  git commit -m "$MSG" 
-  git push --all origin
+    if [ $BE_VERBOSE ]; then echo ">> Backing up $DATABASE"; fi
+    if [ "$1" ]; then COMMIT_MSG="$@"; fi
+    if [ $DRY_RUN ]
+    then
+        echo "/usr/bin/mysqldump --user=${USERNAME} --password=${PASSWORD} --skip-extended-insert $DATABASE > redmine.sql"
+    else
+        /usr/bin/mysqldump --user=${USERNAME} --password=${PASSWORD} --skip-extended-insert $DATABASE > redmine.sql
+    fi
+
+    if [ "$FILES" != "$FILES_BACKUP" ]
+    then
+        [ $BE_VERBOSE ] && echo ">> Backing up files from ${FILES} to ${FILES_BACKUP}";
+        if [ $DRY_RUN ]
+        then
+            echo "cp -f ${FILES}/* ${FILES_BACKUP}"
+        else
+            cp -f ${FILES}/* ${FILES_BACKUP}
+        fi
+    fi
+
+    [ $BE_VERBOSE ] && echo ">> adding and COMMITing on GIT"
+    if [ $DRY_RUN ]
+    then
+        echo "git add *"
+        echo "git commit -m $COMMIT_MSG"
+        echo "git push --all origin"
+    else
+        git add *
+        git commit -m "$COMMIT_MSG"
+        git push --all origin
+    fi
 fi
 
 # something has gone bad, we have to report it
 if [ $? -ne 0 ]
 then
-   echo "Whoops! Something went wrong!"
-   exit $E_GENERROR
+    echo "Whoops! Something went wrong!"
+    exit $E_GENERROR
 fi
 
 exit
