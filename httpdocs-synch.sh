@@ -64,7 +64,7 @@ do
         h ) version
             usage
             quit 0;;
-        n ) DRYRUN_OPT=" -n ";;
+        n ) DRYRUN_OPT=("-n");;
         v ) BE_VERBOSE=true;;
         s ) SYNC_DIRS=$OPTARG
 			SYNC_BACK=true;;
@@ -127,11 +127,11 @@ then
     do
         [ `echo $dir | grep /$` ] && dir="${dir%?}"
         [[ -n $BE_VERBOSE ]] && echo rsync -az --delete $DRYRUN_OPT "$TARGET_DIR/$dir" "${SOURCE_DIR}${dir}/"
-        # rsync \
-        #     -az --progress \
-        #     --delete \
-        #     $DRYRUN_OPT \
-        #     "$TARGET_DIR/$dir" "${SOURCE_DIR}${dir}/"
+        rsync \
+            -az --progress \
+            ${DRYRUN_OPT[@]} \
+            --delete \
+            "$TARGET_DIR/$dir" "${SOURCE_DIR}${dir}/"
     done
 fi
 
