@@ -1,12 +1,13 @@
 #!/bin/sh
-# Time Machine
-# - an rsync backup script
-# - version 0.1
-# 
-# Based on the template provided by Michael Jakl
-# taken from his own blog post found at:
-# http://blog.interlinked.org/tutorials/rsync_time_machine.html
-# and improved by Matteo Pescarin <peach[AT]smartart.it>
+# httpdocs sync
+# - a synchroniser script for web directories
+# - version 0.2
+# - author: Matteo Pescarin <peach[AT]smartart.it>
+#
+# This script takes a source and a target dir and keeps them in sync with
+# their content. It's possible to preserve some directories from the target dir
+# doing a "sync-back" operation and specifying the list of dirs to keep.
+# Optionally a backup can also be created before anything is moved.
 # 
 # This code is provided 'as-is'
 # and released under the GPLv3
@@ -14,7 +15,7 @@
 SYNC_DIRS=''
 SOURCE_DIR=`pwd`
 TARGET_DIR=""
-VERSION="0.1"
+VERSION="0.2"
 NO_ARGS=0 
 E_OPTERROR=85
 E_GENERROR=25
@@ -27,8 +28,9 @@ function usage() {
 \t-v: be verbose
 \t-n: dry run (don't actually execute the commands)
 \t-s <SYNC_DIR_1>[,<SYNC_DIR_2>[,...]]: (comma-separated) list of dirs paths to be
-\t\t synched back. The paths can be absolute or relative to the target dir.
-\t-b <BACKUP_DIR>: the backup directory where the to put the backup (tar.bz2 format)
+\t\t synched back. The paths must be relative to the target dir.
+\t-b <BACKUP_DIR>: the backup directory where the to put the backup in tar.bz2 format
+\t\t of the whole TARGET_DIR before doing any synchronisation.
 \t<SOURCE_DIR>: directory to be used as source
 \t<TARGET_DIR>: the destination directory, if not existing it'll be created.
 \n"
@@ -40,7 +42,7 @@ function version() {
 
 function error() {
     version
-    echo -e "Wrong parameters passed: $1\n"
+    echo -e "Error: $1\n"
     usage
 }
 
@@ -68,7 +70,7 @@ do
         v ) BE_VERBOSE=true;;
         s ) SYNC_DIRS=$OPTARG
 			SYNC_BACK=true;;
-        b ) [ ! -e $OPTARG ] && error "$OPTARG not accessible" && exit $E_OPTERROR
+        b ) [ ! -e $OPTARG ] && error "'$OPTARG' not accessible" && quit $E_OPTERROR
             BACKUP_DIR=$OPTARG;;
     esac
 done
@@ -84,9 +86,9 @@ shift $(($OPTIND - 1))
 if [ $# -eq 2 ]
 then
     SOURCE_DIR=$1
-    [ `echo $SOURCE_DIR | grep [^/]$` ] && SOURCE_DIR="$SOURCE_DIR/"
+    [ `echo ${SOURCE_DIR} | grep [^/]$` ] && SOURCE_DIR="${SOURCE_DIR}/"
     TARGET_DIR=$2
-    [ `echo $TARGET_DIR | grep /$` ] && TARGET_DIR="${TARGET_DIR%?}"
+    [ `echo ${TARGET_DIR} | grep /$` ] && TARGET_DIR="${TARGET_DIR%?}"
 elif [ $# -eq 1 ]
 then
     TARGET_DIR=$1
@@ -94,18 +96,27 @@ fi
 # ensure source dir exists
 if [ ! -e $SOURCE_DIR ]
 then
-    echo "Source dir '$SOURCE_DIR' not found"
+    echo "Source dir '${SOURCE_DIR}' not found"
     quit $E_GENERROR 
 fi
 # ensure target dir exists
 if [ ! -e $TARGET_DIR ]
 then
-    echo "Target dir '$TARGET_DIR' not found"
+    echo "Target dir '${TARGET_DIR}' not found"
     quit $E_GENERROR 
 fi
 
-[[ -n $BE_VERBOSE ]] && echo "SOURCE_DIR: $SOURCE_DIR"
-[[ -n $BE_VERBOSE ]] && echo "TARGET_DIR: $TARGET_DIR"
+[[ -n $BE_VERBOSE ]] && echo ">> SOURCE_DIR: ${SOURCE_DIR}"
+[[ -n $BE_VERBOSE ]] && echo ">> TARGET_DIR: ${TARGET_DIR}"
+
+if [[ -n $BACKUP_DIR ]]
+then
+    [[ -n $BE_VERBOSE ]] && echo ">> BACKUP_DIR: ${BACKUP_DIR}"
+    echo ""
+    [[ -n $BE_VERBOSE ]] && echo ">> Starting the backup"
+    tar -cjpf "${TARGET_DIR}" "${BACKUP_DIR}"
+fi
+
     
 # Split the directories to sync back
 if [ -n $SYNC_BACK ]
@@ -115,29 +126,31 @@ then
     do
         if [[ ! -e "${TARGET_DIR}/${dir}" ]]
         then
-            echo "Sync-back dir $TARGET_DIR/$dir not found"
+            echo "Sync-back dir ${TARGET_DIR}/${dir} not found!"
             quit $E_GENERROR
         elif [ -n $BE_VERBOSE ]
         then
-            echo "Sync-back dir found: $TARGET_DIR/$dir"
+            echo ">> SYNC_DIR: ${TARGET_DIR}/${dir}"
         fi
     done
     # if we are here we can start doing the sync-back
     for dir in $SYNC_DIRS
     do
         [ `echo $dir | grep /$` ] && dir="${dir%?}"
-        [[ -n $BE_VERBOSE ]] && echo rsync -az --delete $DRYRUN_OPT "$TARGET_DIR/$dir" "${SOURCE_DIR}${dir}/"
+        [[ -n $BE_VERBOSE ]] && echo ">> Synching ${TARGET_DIR}/${dir} to ${SOURCE_DIR}${dir}/"
         rsync \
             -az --progress \
             ${DRYRUN_OPT[@]} \
             --delete \
-            "$TARGET_DIR/$dir" "${SOURCE_DIR}${dir}/"
+            "${TARGET_DIR}/${dir}" "${SOURCE_DIR}${dir}/"
     done
 fi
 
-# rsync \
-#     -az --delete \
-#     $DRYRUN_OPT \
-#     "$SOURCE_DIR" "$TARGET_DIR"
+# finally do the actual sync forward
+[[ -n $BE_VERBOSE ]] && echo ">> Synching ${SOURCE_DIR} ${TARGET_DIR}"
+rsync \
+    -az --delete \
+    ${DRYRUN_OPT[@]} \
+    "${SOURCE_DIR}" "${TARGET_DIR}"
 
 quit 0
