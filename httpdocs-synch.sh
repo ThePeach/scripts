@@ -22,7 +22,7 @@ E_GENERROR=25
 OLD_IFS="$IFS"
 IFS=','
 
-function usage() {
+function usage {
     echo -e "Syntax: `basename $0` [-h|-v] [-s <SYNC_DIR_1>[,<SYNC_DIR_2>[,...]]] [-b BACKUP_DIR] <SOURCE_DIR> <TARGET_DIR>
 \t-h: shows this help
 \t-v: be verbose
@@ -36,17 +36,17 @@ function usage() {
 \n"
 }
 
-function version() {
+function version {
     echo -e "`basename $0` - Directory Synchroniser - version $VERSION\n"
 }
 
-function error() {
+function error {
     version
     echo -e "Error: $1\n"
     usage
 }
 
-function quit() {
+function quit {
     IFS=$OLD_IFS
     exit $1
 }
