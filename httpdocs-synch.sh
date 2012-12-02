@@ -22,7 +22,7 @@ E_GENERROR=25
 OLD_IFS="$IFS"
 IFS=','
 
-function usage {
+function usage() {
     echo -e "Syntax: `basename $0` [-h|-v] [-s <SYNC_DIR_1>[,<SYNC_DIR_2>[,...]]] [-b BACKUP_DIR] <SOURCE_DIR> <TARGET_DIR>
 \t-h: shows this help
 \t-v: be verbose
@@ -36,11 +36,11 @@ function usage {
 \n"
 }
 
-function version {
+function version() {
     echo -e "`basename $0` - Directory Synchroniser - version $VERSION\n"
 }
 
-function error {
+function error() {
     version
     echo -e "Error: $1\n"
     usage
@@ -51,8 +51,7 @@ function quit {
     exit $1
 }
 
-if [ $# -eq "$NO_ARGS" ]
-then
+if [ $# -eq "$NO_ARGS" ]; then
     version
     usage
     quit $E_OPTERROR
@@ -83,25 +82,21 @@ shift $(($OPTIND - 1))
 # check the dest and source dirs are ok and normalise the paths
 # the source must have a / delimiter
 # the target must not
-if [ $# -eq 2 ]
-then
+if [ $# -eq 2 ]; then
     SOURCE_DIR=$1
     [ `echo ${SOURCE_DIR} | grep [^/]$` ] && SOURCE_DIR="${SOURCE_DIR}/"
     TARGET_DIR=$2
     [ `echo ${TARGET_DIR} | grep /$` ] && TARGET_DIR="${TARGET_DIR%?}"
-elif [ $# -eq 1 ]
-then
+elif [ $# -eq 1 ]; then
     TARGET_DIR=$1
 fi
 # ensure source dir exists
-if [ ! -e $SOURCE_DIR ]
-then
+if [ ! -e $SOURCE_DIR ]; then
     echo "Source dir '${SOURCE_DIR}' not found"
     quit $E_GENERROR 
 fi
 # ensure target dir exists
-if [ ! -e $TARGET_DIR ]
-then
+if [ ! -e $TARGET_DIR ]; then
     echo "Target dir '${TARGET_DIR}' not found"
     quit $E_GENERROR 
 fi
@@ -109,27 +104,31 @@ fi
 [[ -n $BE_VERBOSE ]] && echo ">> SOURCE_DIR: ${SOURCE_DIR}"
 [[ -n $BE_VERBOSE ]] && echo ">> TARGET_DIR: ${TARGET_DIR}"
 
-if [[ -n $BACKUP_DIR ]]
-then
+if [[ -n $BACKUP_DIR ]]; then
+    BACKUP_FILE="`date +%F-%H-%M`-${TARGET_DIR}.tar.bz2"
+    [ `echo $BACKUP_DIR | grep [^/]$` ] && BACKUP_DIR="${BACKUP_DIR}/"
     [[ -n $BE_VERBOSE ]] && echo ">> BACKUP_DIR: ${BACKUP_DIR}"
+    [[ -n $BE_VERBOSE ]] && echo ">> BACKUP_FILE: ${BACKUP_FILE}"
     echo ""
     [[ -n $BE_VERBOSE ]] && echo ">> Starting the backup"
-    tar -cjpf "${TARGET_DIR}" "${BACKUP_DIR}"
+    if [[ -n $DRYRUN_OPT ]]; then
+        echo tar -cjpf "${BACKUP_DIR}${BACKUP_FILE}" "${TARGET_DIR}"
+    else
+        tar -cjpf "${BACKUP_DIR}${BACKUP_FILE}" "${TARGET_DIR}"
+    fi
+    # if the tar has failed, bail out
 fi
 
     
 # Split the directories to sync back
-if [ -n $SYNC_BACK ]
-then
+if [ -n $SYNC_BACK ]; then
     read -ar SYNC_DIRS <<< "$SYNC_DIRS"
     for dir in $SYNC_DIRS
     do
-        if [[ ! -e "${TARGET_DIR}/${dir}" ]]
-        then
+        if [[ ! -e "${TARGET_DIR}/${dir}" ]]; then
             echo "Sync-back dir ${TARGET_DIR}/${dir} not found!"
             quit $E_GENERROR
-        elif [ -n $BE_VERBOSE ]
-        then
+        elif [ -n $BE_VERBOSE ]; then
             echo ">> SYNC_DIR: ${TARGET_DIR}/${dir}"
         fi
     done
@@ -137,12 +136,12 @@ then
     for dir in $SYNC_DIRS
     do
         [ `echo $dir | grep /$` ] && dir="${dir%?}"
-        [[ -n $BE_VERBOSE ]] && echo ">> Synching ${TARGET_DIR}/${dir} to ${SOURCE_DIR}${dir}/"
+        [[ -n $BE_VERBOSE ]] && echo ">> Synching ${TARGET_DIR}/${dir}/ to ${SOURCE_DIR}${dir}"
         rsync \
             -az --progress \
             ${DRYRUN_OPT[@]} \
             --delete \
-            "${TARGET_DIR}/${dir}" "${SOURCE_DIR}${dir}/"
+            "${TARGET_DIR}/${dir}/" "${SOURCE_DIR}${dir}"
     done
 fi
 
