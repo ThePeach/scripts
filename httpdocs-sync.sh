@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # httpdocs sync
 # - a synchroniser script for web directories
 # - version 0.2
@@ -138,7 +138,6 @@ if [ -n $EXCLUDE ]; then
     done
     # if we are here we can start doing the sync-back
     read -ar EXCLUDE_OPT <<< "$EXCLUDE_OPT"
-    
 fi
 
 IFS=','
@@ -147,8 +146,11 @@ IFS=','
 [[ -n $BE_VERBOSE ]] && echo ">> Synching ${SOURCE_DIR} ${TARGET_DIR}"
 [[ -n $EXCLUDE ]] && [[ -n $BE_VERBOSE ]] && echo ">> EXCLUDE_OPT: ${EXCLUDE_OPT[@]}"
 
+    
+# rsync options "rlptDz" excluding owner and group changes
+
 rsync \
-    -az --delete \
+    -rlptDz --delete \
     ${VERBOSE_OPT[@]} \
     ${DRYRUN_OPT[@]} \
     ${EXCLUDE_OPT[@]} \
