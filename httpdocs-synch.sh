@@ -29,7 +29,7 @@ function usage() {
 \t-v: be verbose
 \t-n: dry run (don't actually execute the commands)
 \t-e <EXCLUDE_DIR_1>[,<EXCLUDE_DIR_2>[,...]]: (comma-separated) list of dirs paths to be
-\t\t synched back. The paths must be relative to the target dir.
+\t\t excluded. See man rsync under INCLUDE/EXCLUDE PATTERN RULES on how to write them.
 \t-b <BACKUP_DIR>: the backup directory where the to put the backup in tar.bz2 format
 \t\t of the whole TARGET_DIR before doing any synchronisation.
 \t<SOURCE_DIR>: directory to be used as source
@@ -106,6 +106,7 @@ fi
 [[ -n $BE_VERBOSE ]] && echo ">> SOURCE_DIR: ${SOURCE_DIR}"
 [[ -n $BE_VERBOSE ]] && echo ">> TARGET_DIR: ${TARGET_DIR}"
 
+# BACKUP
 if [[ -n $BACKUP_DIR ]]; then
     BACKUP_FILE="`date +%F-%H-%M`-${TARGET_DIR}.tar.bz2"
     [ `echo $BACKUP_DIR | grep [^/]$` ] && BACKUP_DIR="${BACKUP_DIR}/"
@@ -122,32 +123,35 @@ if [[ -n $BACKUP_DIR ]]; then
 fi
 
     
-# Split the directories to sync back
+# Do some prep-work on the directories to exclude
 if [ -n $EXCLUDE ]; then
     read -ar EXCLUDE_DIRS <<< "$EXCLUDE_DIRS"
+    i=1
     for dir in $EXCLUDE_DIRS
     do
-        if [[ ! -e "${TARGET_DIR}/${dir}" ]]; then
-            echo "Excluded dir ${TARGET_DIR}/${dir} not found!"
-            quit $E_GENERROR
-        elif [ -n $BE_VERBOSE ]; then
-            echo ">> Excluded dir: ${TARGET_DIR}/${dir}"
+        if [[ $i -eq  1 ]]; then
+            EXCLUDE_OPT="--exclude=${dir}"
+        else
+            EXCLUDE_OPT="${EXCLUDE_OPT},--exclude=${dir}"
         fi
+        i=$(( $i + 1 ))
     done
     # if we are here we can start doing the sync-back
-    EXCLUDE_OPT="--exclude=${EXCLUDE_DIRS[*]}"
-    [[ -n $BE_VERBOSE ]] && echo ">> EXCLUDE_OPT: ${EXCLUDE_OPT}"
+    read -ar EXCLUDE_OPT <<< "$EXCLUDE_OPT"
+    
 fi
+
+IFS=','
 
 # finally do the actual sync forward
 [[ -n $BE_VERBOSE ]] && echo ">> Synching ${SOURCE_DIR} ${TARGET_DIR}"
-[[ -n $EXCLUDE ]] && echo ">> Excluding ${EXCLUDE_DIRS[*]}"
+[[ -n $EXCLUDE ]] && [[ -n $BE_VERBOSE ]] && echo ">> EXCLUDE_OPT: ${EXCLUDE_OPT[@]}"
 
 rsync \
     -az --delete \
     ${VERBOSE_OPT[@]} \
     ${DRYRUN_OPT[@]} \
-    "${SOURCE_DIR}" "${TARGET_DIR}" \
-    ${EXCLUDE_OPT[@]}
+    ${EXCLUDE_OPT[@]} \
+    "${SOURCE_DIR}" "${TARGET_DIR}"
 
 quit 0
