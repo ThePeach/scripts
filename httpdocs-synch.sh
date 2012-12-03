@@ -12,7 +12,8 @@
 # This code is provided 'as-is'
 # and released under the GPLv3
 
-SYNC_DIRS=''
+EXCLUDE_DIRS=''
+EXCLUDE_OPT=""
 SOURCE_DIR=`pwd`
 TARGET_DIR=""
 VERSION="0.2"
@@ -23,11 +24,11 @@ OLD_IFS="$IFS"
 IFS=','
 
 function usage() {
-    echo -e "Syntax: `basename $0` [-h|-v] [-s <SYNC_DIR_1>[,<SYNC_DIR_2>[,...]]] [-b BACKUP_DIR] <SOURCE_DIR> <TARGET_DIR>
+    echo -e "Syntax: `basename $0` [-h|-v] [-e <EXCLUDE_DIR_1>[,<EXCLUDE_DIR_2>[,...]]] [-b BACKUP_DIR] <SOURCE_DIR> <TARGET_DIR>
 \t-h: shows this help
 \t-v: be verbose
 \t-n: dry run (don't actually execute the commands)
-\t-s <SYNC_DIR_1>[,<SYNC_DIR_2>[,...]]: (comma-separated) list of dirs paths to be
+\t-e <EXCLUDE_DIR_1>[,<EXCLUDE_DIR_2>[,...]]: (comma-separated) list of dirs paths to be
 \t\t synched back. The paths must be relative to the target dir.
 \t-b <BACKUP_DIR>: the backup directory where the to put the backup in tar.bz2 format
 \t\t of the whole TARGET_DIR before doing any synchronisation.
@@ -59,24 +60,25 @@ fi
 
 # The expected flags are
 #  h v r
-while getopts ":hnvs:b:" Option
+while getopts ":hnve:b:" Option
 do
     case $Option in
         h ) version
             usage
             quit 0;;
         n ) DRYRUN_OPT=("-n");;
-        v ) BE_VERBOSE=true;;
-        s ) SYNC_DIRS=$OPTARG
-			SYNC_BACK=true;;
+        v ) BE_VERBOSE=true
+            VERBOSE_OPT=("-v");;
+        e ) EXCLUDE_DIRS=$OPTARG
+			EXCLUDE=true;;
         b ) [ ! -e $OPTARG ] && error "'$OPTARG' not accessible" && quit $E_OPTERROR
             BACKUP_DIR=$OPTARG;;
     esac
 done
 
-#  Decrements the argument pointer so it points to next argument.
-#  $1 now references the first non-option item supplied on the command-line
-#+ if one exists.
+# Decrements the argument pointer so it points to next argument.
+# $1 now references the first non-option item supplied on the command-line
+# if one exists.
 shift $(($OPTIND - 1))
 
 # check the dest and source dirs are ok and normalise the paths
@@ -114,42 +116,38 @@ if [[ -n $BACKUP_DIR ]]; then
     if [[ -n $DRYRUN_OPT ]]; then
         echo tar -cjpf "${BACKUP_DIR}${BACKUP_FILE}" "${TARGET_DIR}"
     else
-        tar -cjpf "${BACKUP_DIR}${BACKUP_FILE}" "${TARGET_DIR}"
+        tar -cjpf ${VERBOSE_OPT[@]} "${BACKUP_DIR}${BACKUP_FILE}" "${TARGET_DIR}"
     fi
     # if the tar has failed, bail out
 fi
 
     
 # Split the directories to sync back
-if [ -n $SYNC_BACK ]; then
-    read -ar SYNC_DIRS <<< "$SYNC_DIRS"
-    for dir in $SYNC_DIRS
+if [ -n $EXCLUDE ]; then
+    read -ar EXCLUDE_DIRS <<< "$EXCLUDE_DIRS"
+    for dir in $EXCLUDE_DIRS
     do
         if [[ ! -e "${TARGET_DIR}/${dir}" ]]; then
-            echo "Sync-back dir ${TARGET_DIR}/${dir} not found!"
+            echo "Excluded dir ${TARGET_DIR}/${dir} not found!"
             quit $E_GENERROR
         elif [ -n $BE_VERBOSE ]; then
-            echo ">> SYNC_DIR: ${TARGET_DIR}/${dir}"
+            echo ">> Excluded dir: ${TARGET_DIR}/${dir}"
         fi
     done
     # if we are here we can start doing the sync-back
-    for dir in $SYNC_DIRS
-    do
-        [ `echo $dir | grep /$` ] && dir="${dir%?}"
-        [[ -n $BE_VERBOSE ]] && echo ">> Synching ${TARGET_DIR}/${dir}/ to ${SOURCE_DIR}${dir}"
-        rsync \
-            -az --progress \
-            ${DRYRUN_OPT[@]} \
-            --delete \
-            "${TARGET_DIR}/${dir}/" "${SOURCE_DIR}${dir}"
-    done
+    EXCLUDE_OPT="--exclude=${EXCLUDE_DIRS[*]}"
+    [[ -n $BE_VERBOSE ]] && echo ">> EXCLUDE_OPT: ${EXCLUDE_OPT}"
 fi
 
 # finally do the actual sync forward
 [[ -n $BE_VERBOSE ]] && echo ">> Synching ${SOURCE_DIR} ${TARGET_DIR}"
+[[ -n $EXCLUDE ]] && echo ">> Excluding ${EXCLUDE_DIRS[*]}"
+
 rsync \
     -az --delete \
+    ${VERBOSE_OPT[@]} \
     ${DRYRUN_OPT[@]} \
-    "${SOURCE_DIR}" "${TARGET_DIR}"
+    "${SOURCE_DIR}" "${TARGET_DIR}" \
+    ${EXCLUDE_OPT[@]}
 
 quit 0
