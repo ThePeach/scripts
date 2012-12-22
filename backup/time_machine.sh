@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Time Machine
 # - an rsync backup script
 # - version 0.1
@@ -11,14 +11,14 @@
 # This code is provided 'as-is'
 # and released under the GPLv3
 
-VERSION="0.1"
+VERSION='0.1'
 DATE=`date "+%Y-%m-%dT%H_%M_%S"`
 HOME="/home/`whoami`/"
 NO_ARGS=0 
 E_OPTERROR=85
 E_GENERROR=25
-EXCLUDE_OPT=""
-REMOTE_OPT=""
+EXCLUDE_OPT=''
+REMOTE_OPT=''
 
 function usage() {
     echo -e "Syntax: `basename $0` [-v|-h|-r <[user@]host>|-e <exclude list>] [<source>] <dest>
@@ -62,10 +62,10 @@ do
             usage
             exit 0;;
         v ) BE_VERBOSE=true;;
-        n ) DRYRUN_OPT=" -n ";;
+        n ) DRYRUN_OPT=("-n");;
         r ) REMOTE_OPT=$OPTARG;;
         e ) [ ! -e $OPTARG ] && error "$OPTARG not accessible" && exit $E_OPTERROR
-            EXCLUDE_OPT="--delete-excluded --exclude-from=$OPTARG";;
+            EXCLUDE_OPT=("--delete-excluded --exclude-from=$OPTARG");;
     esac
 done
 
@@ -122,8 +122,8 @@ LN_CMD="ln -sfn back-$DATE current"
 rsync \
     -az --progress --partial \
     --delete \
-    $DRYRUN_OPT \
-    $EXCLUDE_OPT \
+    ${DRYRUN_OPT[@]} \
+    ${EXCLUDE_OPT[@]} \
     --link-dest=$DEST/current \
     $SOURCE $DEST/incomplete_back-$DATE
 
