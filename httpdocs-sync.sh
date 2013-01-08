@@ -1,7 +1,7 @@
 #!/bin/bash
 # httpdocs sync
 # - a synchroniser script for web directories
-# - version 0.2
+# - version 0.3
 # - author: Matteo Pescarin <peach[AT]smartart.it>
 #
 # This script takes a source and a target dir and keeps them in sync with
@@ -16,7 +16,7 @@ EXCLUDE_DIRS=''
 EXCLUDE_OPT=""
 SOURCE_DIR=`pwd`
 TARGET_DIR=""
-VERSION="0.2"
+VERSION="0.3"
 NO_ARGS=0 
 E_OPTERROR=85
 E_GENERROR=25
