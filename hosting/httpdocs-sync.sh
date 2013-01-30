@@ -1,7 +1,7 @@
 #!/bin/bash
 # httpdocs sync
 # - a synchroniser script for web directories
-# - version 0.2
+# - version 0.3
 # - author: Matteo Pescarin <peach[AT]smartart.it>
 #
 # This script takes a source and a target dir and keeps them in sync with
@@ -16,7 +16,7 @@ EXCLUDE_DIRS=''
 EXCLUDE_OPT=""
 SOURCE_DIR=`pwd`
 TARGET_DIR=""
-VERSION="0.2"
+VERSION="0.3"
 NO_ARGS=0 
 E_OPTERROR=85
 E_GENERROR=25
@@ -32,6 +32,8 @@ function usage() {
 \t\t excluded. See man rsync under INCLUDE/EXCLUDE PATTERN RULES on how to write them.
 \t-b <BACKUP_DIR>: the backup directory where the to put the backup in tar.bz2 format
 \t\t of the whole TARGET_DIR before doing any synchronisation.
+\t-u <WEB_USER>: the user to use in order to fix the permissions, usually the 
+\t\t server administrator. Permissions will be set as ug+rwX recursivly
 \t<SOURCE_DIR>: directory to be used as source
 \t<TARGET_DIR>: the destination directory, if not existing it'll be created.
 \n"
@@ -60,7 +62,7 @@ fi
 
 # The expected flags are
 #  h v r
-while getopts ":hnve:b:" Option
+while getopts ":hnve:b:u:" Option
 do
     case $Option in
         h ) version
@@ -73,6 +75,7 @@ do
 			EXCLUDE=true;;
         b ) [ ! -e $OPTARG ] && error "'$OPTARG' not accessible" && quit $E_OPTERROR
             BACKUP_DIR=$OPTARG;;
+        u ) WEB_USER=$OPTARG;;
     esac
 done
 
@@ -155,5 +158,27 @@ rsync \
     ${DRYRUN_OPT[@]} \
     ${EXCLUDE_OPT[@]} \
     "${SOURCE_DIR}" "${TARGET_DIR}"
+
+# TODO check no errors during rsync, bail out and return the error?
+
+if [[ -n $WEB_USER ]]; then
+    # set owner:group to $WEB_USER:$WEB_USER 
+    [[ -n $BE_VERBOSE ]] && echo ">> Updating owner:group to ${WEB_USER}:${WEB_USER}"
+    if [[ -n $DRYRUN_OPT ]]; then
+        echo chown -R $WEB_USER:$WEB_USER "${TARGET_DIR}"
+    else
+        chown -R $WEB_USER:$WEB_USER "${TARGET_DIR}"
+    fi
+
+    # set permissions to ug+rwX
+    [[ -n $BE_VERBOSE ]] && echo ">> Updating permissions to ug+rwX,o-rwx"
+    if [[ -n $DRYRUN_OPT ]]; then
+        echo chmod -R ug+rwX,o-rwx "${TARGET_DIR}"
+    else
+        chmod -R ug+rwX,o-rwx "${TARGET_DIR}"
+    fi
+fi
+
+# TODO check no errors during rsync, bail out and return the error?
 
 quit 0
