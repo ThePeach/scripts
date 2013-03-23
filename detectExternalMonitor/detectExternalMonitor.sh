@@ -62,7 +62,7 @@ DefaultFilePrefix=`whoami`"_Monitor_"
 # xosd program
 Xosd="/usr/bin/osd_cat"
 # Options for xosd
-XosdOpts="-p middle -A center -f -adobe-helvetica-bold-*-*-*-34-*-*-*-*-*-*-* -d 1 -s 2"
+XosdOpts=("--pos=middle","--align=center","--font=-adobe-helvetica-bold-*-*-*-34-*-*-*-*-*-*-*","--delay=1","--shadow=2")
 # default color for OSD text
 defaultColor="white"
 # selected color for OSD text
@@ -82,9 +82,9 @@ fileName=""
 # XOSD display of 3 rows, call it with:
 # displayText row1 color1 row2 color2 row3 color3
 function displayText() {
-	echo -e $1 | osd_cat $XosdOpts -c $2 -o 50 &
-	echo -e $3 | osd_cat $XosdOpts -c $4 &
-	echo -e $5 | osd_cat $XosdOpts -c $6 -o -50 &
+	echo -e $1 | osd_cat ${XosdOpts[@]} -c $2 -o 50 &
+	echo -e $3 | osd_cat ${XosdOpts[@]} -c $4 &
+	echo -e $5 | osd_cat ${XosdOpts[@]} -c $6 -o -50 &
 }
 
 # converts the input in uppercase
