@@ -232,13 +232,9 @@ elif [[ -n $CHECK ]]; then
 
 		# TODO check if external is attached with wrong direction
 		#      and restore original direcion if needed
-		if [ "${currentRes}" = "${singleRes}" ]; then
-			[[ -n "${BE_VERBOSE}" ]] && echo ">> Extending to external monitor"
-			displayText "$laptop" $defaultColor "`toUpper $extended`" $selectedColor "$external" $defaultColor
-			disper -e -t $DIRECTION
-
-		fi
-
+		[[ -n "${BE_VERBOSE}" ]] && echo ">> Extending/resetting external monitor"
+		displayText "$laptop" $defaultColor "`toUpper $extended`" $selectedColor "$external" $defaultColor
+		disper -e -t $DIRECTION
 
 	# we are in single monitor mode
 	else 
