@@ -17,5 +17,5 @@ if [[ -e $BASE ]]; then
 	chown $USER $BASE
 	chown $USER $TEMP
 	echo ">> cleaning ${TEMP}"
-	rm -vrf ${TEMP}/*
+	rm -vrf ${TEMP}/.[^.] ${TEMP}/.??*
 fi
