@@ -11,7 +11,7 @@
 # This code is provided 'as-is'
 # and released under the GPLv3
 
-VERSION='0.1'
+VERSION='0.2'
 DATE=`date "+%Y-%m-%dT%H_%M_%S"`
 HOME="/home/`whoami`/"
 NO_ARGS=0 
@@ -120,7 +120,7 @@ MV_CMD="mv $DEST/incomplete_back-$DATE $DEST/back-$DATE"
 LN_CMD="ln -sfn back-$DATE current"
 
 rsync \
-    -az --progress --partial \
+    -az --stats --partial \
     --delete \
     ${DRYRUN_OPT[@]} \
     ${EXCLUDE_OPT[@]} \
