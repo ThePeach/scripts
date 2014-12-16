@@ -153,7 +153,7 @@ IFS=','
 # rsync options "rlptDz" excluding owner and group changes
 
 rsync \
-    -rlptDz --delete \
+    -rlptDzO --delete \
     ${VERBOSE_OPT[@]} \
     ${DRYRUN_OPT[@]} \
     ${EXCLUDE_OPT[@]} \
